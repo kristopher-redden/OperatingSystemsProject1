@@ -5,16 +5,27 @@
 #include <sstream>
 #include <boost/filesystem.hpp>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
 using namespace std;
 
 int main(int argc, char* argv[])
 {
     //http://www.cplusplus.com/reference/string/string/find_last_of/
     //Create directory one level lower.
-    string exeLocation = argv[0];
-    size_t found = exeLocation.find_last_of("/\\");
-    string locationToWriteNewFileTo = exeLocation.substr(0,found) + "/OperatingSystemProjectOneLevelLower/";
-    boost::filesystem::create_directory(locationToWriteNewFileTo);
+    string exe = argv[0];
+    size_t found = exe.find_last_of("/\\");
+    string exeDirLocation = exe.substr(0,found);
+
+    //Make an array to hold all values to send to g++.
+    char **allFiles = new char *[200];
+    allFiles[199] = nullptr;
+    string gplusplus = "g++";
+    allFiles[0] = const_cast<char *>(gplusplus.c_str());//ALT + Enter = ShortCut help.
 
     string fileNameToCopy;
     string src;
@@ -22,67 +33,81 @@ int main(int argc, char* argv[])
     //Copy the files to the new location.
     for (int fileNum = 1; fileNum < argc; fileNum++)
     {
+        //Generate source file.
         src = argv[fileNum];
-        boost::filesystem::path source(src);
+        boost::filesystem::path testFullPath(src);
 
+        //Get filename.
         size_t found = src.find_last_of("/\\");
         fileNameToCopy = src.substr(found+1);
 
-        dst = "/var/tmp/" + fileNameToCopy;//locationToWriteNewFileTo + fileNameToCopy;//"/var/tmp/" + fileNum;//
-        boost::filesystem::path destination(dst);
-        boost::filesystem::copy_file(source, destination,boost::filesystem::copy_option::overwrite_if_exists);
+        //Check to see if the file is in the exe location or a full path.
+        if (testFullPath.has_parent_path())
+        {
+            //Absolute path specified, file doesn't need folder path.
+            boost::filesystem::path source(src);
+            if (boost::filesystem::exists(source))
+            {
+                //Generate destination and copy.
+                dst = "/var/tmp/" + fileNameToCopy;
+                boost::filesystem::path destination(dst);
+                boost::filesystem::copy_file(source, destination,boost::filesystem::copy_option::overwrite_if_exists);
+                allFiles[fileNum] = const_cast<char *>(dst.c_str());
+
+                if (boost::filesystem::exists(dst))
+                    cout << "Copy of " + dst + " was successful." << endl ;
+                else
+                    cout << "Copy of " + dst + " failed." << endl;
+            }
+            else
+            {
+                string notFound = source.filename().c_str();
+                cerr << notFound + " does not exist." << endl ;
+            }
+        }
+        else
+        {
+            //Relative path specified, prepend exe location.
+            string fileLocation = exeDirLocation + src;
+            boost::filesystem::path source(src);
+
+            if (boost::filesystem::exists(source))
+            {
+                //Generate destination and copy.
+                dst = "/var/tmp/" + fileNameToCopy;
+                boost::filesystem::path destination(dst);
+                boost::filesystem::copy_file(source, destination,boost::filesystem::copy_option::overwrite_if_exists);
+                allFiles[fileNum] = const_cast<char *>(dst.c_str());
+
+                if (boost::filesystem::exists(dst))
+                    cout << "Copy of " + dst + " was successful." << endl ;
+                else
+                    cout << "Copy of " + dst + " failed." << endl;
+            }
+            else
+            {
+                string notFound = source.filename().c_str();
+                cerr << notFound + "does not exist" << endl ;
+            }
+        }
     }
 
+    string outFileCommand = "-o";
+    allFiles[argc] = const_cast<char *>(outFileCommand.c_str());
+    string outputFileName = "/var/tmp/outputFileCompiled.exe";
+    allFiles[argc + 1] = const_cast<char *>(outputFileName.c_str());
 
-//    if (boost::filesystem::create_directory(locationToWriteNewFileTo))
-//    {
-//        //Directory created successfully.
-//        int x = 0;
-//    }
-//    else
-//    {
-//        //Directory creation failed.
-//        int x = 0;
-//    }
-//    //Copy files from one location to another.
-//    for (int paramCount = 1; paramCount < argc; paramCount++)
-//    {
-//        //http://www.cplusplus.com/forum/general/116829/
-//        stringstream ss(argv[paramCount]);
-//        string token;
-//        while(getline(ss,token, '/'))
-//        {
-//            //Places what was split in the token.  What is left over is the filename.
-//        }
-//
-//        //boost::filesystem::path thePath = boost::filesystem::current_path();
-//
-//        ifstream  src(argv[paramCount], ios::binary);
-//        //If the source file exists, then create a folder at the same level and copy it down.
-//        if (src.good())
-//        {
-//
-//            string newLocation = locationToWriteNewFileTo + token;
-//            ofstream  dst(newLocation, ios::binary);
-//            dst << src.rdbuf();
-//
-//            ifstream check(newLocation, ios::binary);
-//            if (check.good())
-//            {
-//                //It was copied successfully.
-//                int x = 0;
-//            }
-//            else
-//            {
-//                //Not copied.
-//                int x = 0;
-//            }
-//        }
-//        else
-//        {
-//            string fileNotFound = argv[paramCount];
-//            cerr << fileNotFound + " file not found.";
-//            int x = 0;
-//        }
-//    }
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        execv("/usr/bin/g++", allFiles);
+    }
+    else if (pid < 0)
+    {
+        cerr << "Failed to fork." << endl;
+    }
+    else
+    {
+        //Parent program, nothing to do.
+    }
 }
