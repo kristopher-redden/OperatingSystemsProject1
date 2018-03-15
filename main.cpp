@@ -23,6 +23,8 @@ int main(int argc, char* argv[])
 
     //Make an array to hold all values to send to g++.
     char **allFiles = new char *[200];
+    string *destinationLocations = new string[200];
+
     allFiles[199] = nullptr;
     string gplusplus = "g++";
     allFiles[0] = const_cast<char *>(gplusplus.c_str());//ALT + Enter = ShortCut help.
@@ -50,9 +52,10 @@ int main(int argc, char* argv[])
             {
                 //Generate destination and copy.
                 dst = "/var/tmp/" + fileNameToCopy;
+                destinationLocations[fileNum] = const_cast<char *>(dst.c_str());
                 boost::filesystem::path destination(dst);
                 boost::filesystem::copy_file(source, destination,boost::filesystem::copy_option::overwrite_if_exists);
-                allFiles[fileNum] = const_cast<char *>(dst.c_str());
+                allFiles[fileNum] = const_cast<char *>(destinationLocations[fileNum].c_str());
 
                 if (boost::filesystem::exists(dst))
                     cout << "Copy of " + dst + " was successful." << endl ;
@@ -75,9 +78,10 @@ int main(int argc, char* argv[])
             {
                 //Generate destination and copy.
                 dst = "/var/tmp/" + fileNameToCopy;
+                destinationLocations[fileNum] = const_cast<char *>(dst.c_str());
                 boost::filesystem::path destination(dst);
                 boost::filesystem::copy_file(source, destination,boost::filesystem::copy_option::overwrite_if_exists);
-                allFiles[fileNum] = const_cast<char *>(dst.c_str());
+                allFiles[fileNum] = const_cast<char *>(destinationLocations[fileNum].c_str());
 
                 if (boost::filesystem::exists(dst))
                     cout << "Copy of " + dst + " was successful." << endl ;
@@ -94,9 +98,10 @@ int main(int argc, char* argv[])
 
     string outFileCommand = "-o";
     allFiles[argc] = const_cast<char *>(outFileCommand.c_str());
-    string outputFileName = "/var/tmp/outputFileCompiled.exe";
+    string outputFileName = "/var/tmp/outputFileCompiled";
     allFiles[argc + 1] = const_cast<char *>(outputFileName.c_str());
 
+    int childWait;
     pid_t pid = fork();
     if (pid == 0)
     {
@@ -109,5 +114,15 @@ int main(int argc, char* argv[])
     else
     {
         //Parent program, nothing to do.
+    }
+
+    waitpid(pid, &childWait, 0);
+    if (boost::filesystem::exists(outputFileName))
+    {
+        cout << "Compilation successful." << endl;
+    }
+    else
+    {
+        cout << "Compilation failed." << endl;
     }
 }
