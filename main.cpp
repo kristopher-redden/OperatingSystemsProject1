@@ -22,16 +22,17 @@ int main(int argc, char* argv[])
     string exeDirLocation = exe.substr(0,found);
 
     //Make an array to hold all values to send to g++.
-    char **allFiles = new char *[200];
-    string *destinationLocations = new string[200];
+    char **allFiles = new char *[argc + 4];
+    string *destinationLocations = new string[argc + 4];
 
-    allFiles[199] = nullptr;
+    allFiles[argc + 4 - 1] = nullptr;
     string gplusplus = "g++";
     allFiles[0] = const_cast<char *>(gplusplus.c_str());//ALT + Enter = ShortCut help.
 
     string fileNameToCopy;
     string src;
     string dst;
+    int fileNotFoundCount = 0;
     //Copy the files to the new location.
     for (int fileNum = 1; fileNum < argc; fileNum++)
     {
@@ -55,15 +56,21 @@ int main(int argc, char* argv[])
                 destinationLocations[fileNum] = const_cast<char *>(dst.c_str());
                 boost::filesystem::path destination(dst);
                 boost::filesystem::copy_file(source, destination,boost::filesystem::copy_option::overwrite_if_exists);
-                allFiles[fileNum] = const_cast<char *>(destinationLocations[fileNum].c_str());
 
                 if (boost::filesystem::exists(dst))
+                {
+                    allFiles[fileNum - fileNotFoundCount] = const_cast<char *>(destinationLocations[fileNum].c_str());
                     cout << "Copy of " + dst + " was successful." << endl ;
+                }
                 else
+                {
                     cout << "Copy of " + dst + " failed." << endl;
+                    fileNotFoundCount++;
+                }
             }
             else
             {
+                fileNotFoundCount++;
                 string notFound = source.filename().c_str();
                 cerr << notFound + " does not exist." << endl ;
             }
@@ -81,30 +88,40 @@ int main(int argc, char* argv[])
                 destinationLocations[fileNum] = const_cast<char *>(dst.c_str());
                 boost::filesystem::path destination(dst);
                 boost::filesystem::copy_file(source, destination,boost::filesystem::copy_option::overwrite_if_exists);
-                allFiles[fileNum] = const_cast<char *>(destinationLocations[fileNum].c_str());
 
                 if (boost::filesystem::exists(dst))
+                {
                     cout << "Copy of " + dst + " was successful." << endl ;
+                    allFiles[fileNum - fileNotFoundCount] = const_cast<char *>(destinationLocations[fileNum].c_str());
+                }
                 else
+                {
+                    fileNotFoundCount++;
                     cout << "Copy of " + dst + " failed." << endl;
+                }
             }
             else
             {
+                fileNotFoundCount++;
                 string notFound = source.filename().c_str();
-                cerr << notFound + "does not exist" << endl ;
+                cerr << notFound + " does not exist." << endl ;
             }
         }
     }
 
     string outFileCommand = "-o";
-    allFiles[argc] = const_cast<char *>(outFileCommand.c_str());
+    allFiles[argc - fileNotFoundCount] = const_cast<char *>(outFileCommand.c_str());
     string outputFileName = "/var/tmp/outputFileCompiled";
-    allFiles[argc + 1] = const_cast<char *>(outputFileName.c_str());
+    allFiles[argc + 1 - fileNotFoundCount] = const_cast<char *>(outputFileName.c_str());
 
     int childWait;
     pid_t pid = fork();
     if (pid == 0)
     {
+        cout << "Compile command: ";
+        for (int i = 0; i < argc - fileNotFoundCount + 2; i++)
+            cout << allFiles[i] << " ";
+        cout << endl;
         execv("/usr/bin/g++", allFiles);
     }
     else if (pid < 0)
@@ -118,11 +135,7 @@ int main(int argc, char* argv[])
 
     waitpid(pid, &childWait, 0);
     if (boost::filesystem::exists(outputFileName))
-    {
         cout << "Compilation successful." << endl;
-    }
     else
-    {
         cout << "Compilation failed." << endl;
-    }
 }
