@@ -1,14 +1,6 @@
 #include <iostream>
-#include <string>
-#include <cstddef>
-#include <fstream>
-#include <sstream>
 #include <boost/filesystem.hpp>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <sys/wait.h>
 
 using namespace std;
@@ -109,11 +101,13 @@ int main(int argc, char* argv[])
         }
     }
 
+    //Construct the rest of the output file name and command.
     string outFileCommand = "-o";
     allFiles[argc - fileNotFoundCount] = const_cast<char *>(outFileCommand.c_str());
     string outputFileName = "/var/tmp/outputFileCompiled";
     allFiles[argc + 1 - fileNotFoundCount] = const_cast<char *>(outputFileName.c_str());
 
+    //Being the fork.
     int childWait;
     pid_t pid = fork();
     if (pid == 0)
